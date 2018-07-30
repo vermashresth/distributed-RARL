@@ -37,4 +37,5 @@ python adversarial/scripts/train_adversary.py --env InvertedPendulumAdv-v1 --fol
 ```
 
 ## Contact
-Lerrel Pinto -- lerrelpATcsDOTcmuDOTedu.
+Original Author : Lerrel Pinto -- lerrelpATcsDOTcmuDOTedu.
+For distributed code : Shresth Verma -- vermashresthATgmailDOTcom
