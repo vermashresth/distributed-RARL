@@ -9,7 +9,6 @@ dependencies:
     - python==3.5.2
     - numpy==1.10.4
     - scipy
-    - path.py
     - python-dateutil
     - joblib==0.9.4
     - mako
@@ -26,6 +25,7 @@ dependencies:
     - pip:
         - Pillow
         - atari-py
+        - path.py
         - pyprind
         - ipdb
         - boto3
@@ -33,7 +33,7 @@ dependencies:
         - nose2
         - pyzmq
         - msgpack-python
-        - mujoco_py
+        - mujoco_py==0.5.7
         - cached_property
         - line_profiler
         - Cython

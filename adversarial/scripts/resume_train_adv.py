@@ -14,11 +14,15 @@ import argparse
 import os
 import gym
 import random
+import joblib
+import tensorflow as tf
+
 #from IPython import embed
 
 ## Pass arguments ##
 parser = argparse.ArgumentParser()
-parser.add_argument('--env', type=str, required=True, help='Name of adversarial environment')
+parser.add_argument('--file', type=str, required=True, help='path of weight file')
+parser.add_argument('--env', type=str, help='Name of adversarial environment')
 parser.add_argument('--path_length', type=int, default=1000, help='maximum episode length')
 parser.add_argument('--layer_size', nargs='+', type=int, default=[100,100,100], help='layer definition')
 parser.add_argument('--if_render', type=int, default=0, help='Should we render?')
@@ -34,10 +38,16 @@ parser.add_argument('--adv_fraction', type=float, default=0.25, help='fraction o
 parser.add_argument('--step_size', type=float, default=0.01, help='kl step size for TRPO')
 parser.add_argument('--gae_lambda', type=float, default=0.97, help='gae_lambda for learner')
 parser.add_argument('--folder', type=str, default=os.environ['HOME'], help='folder to save result in')
+args_init = parser.parse_args()
+
+data = joblib.load(args_init.file)
+pro_policy = data['pro_policy']
+args = data['args']
+
+
 
 
 ## Parsing Arguments ##
-args = parser.parse_args()
 env_name = args.env
 path_length = args.path_length
 layer_size = tuple(args.layer_size)
@@ -55,30 +65,37 @@ step_size = args.step_size
 gae_lambda = args.gae_lambda
 save_dir = args.folder
 
+n_pro_itr = args_init.n_pro_itr
+#n_itr = args_init.n_itr
+save_every = args_init.save_every
+n_itr= args_init.n_itr
+
 ## Initializing summaries for the tests ##
-const_test_rew_summary = []
-rand_test_rew_summary = []
-step_test_rew_summary = []
-rand_step_test_rew_summary = []
-adv_test_rew_summary = []
+const_test_rew_summary = data['zero_test']
+rand_test_rew_summary =data ['rand_test']
+step_test_rew_summary = data['step_test']
+rand_step_test_rew_summary = data['rand_step_test']
+adv_test_rew_summary = data['adv_test']
+ne = data['exp_save']
+ni = data['iter_save']
+
+pro_policy = data['pro_policy']
+adv_policy = data['adv_policy']
+
 
 ## Preparing file to save results in ##
 save_prefix = 'env-{}_Exp{}_Itr{}_BS{}_Adv{}_stp{}_lam{}_{}'.format(env_name, n_exps, n_itr, batch_size, adv_fraction, step_size, gae_lambda, random.randint(0,1000000))
 save_name = save_dir+'/'+save_prefix+'.p'
 
 ## Looping over experiments to carry out ##
-for ne in range(n_exps):
+while ne <= n_exps:
     ## Environment definition ##
     ## The second argument in GymEnv defines the relative magnitude of adversary. For testing we set this to 1.0.
     env = normalize(GymEnv(env_name, adv_fraction))
     env_orig = normalize(GymEnv(env_name, 1.0))
 
     ## Protagonist policy definition ##
-    pro_policy = GaussianMLPPolicy(
-        env_spec=env.spec,
-        hidden_sizes=layer_size,
-        is_protagonist=True
-    )
+    
     pro_baseline = LinearFeatureBaseline(env_spec=env.spec)
 
     ## Zero Adversary for the protagonist training ##
@@ -89,11 +106,7 @@ for ne in range(n_exps):
     )
 
     ## Adversary policy definition ##
-    adv_policy = GaussianMLPPolicy(
-        env_spec=env.spec,
-        hidden_sizes=layer_size,
-        is_protagonist=False
-    )
+    
     adv_baseline = LinearFeatureBaseline(env_spec=env.spec)
 
     ## Initializing the parallel sampler ##
@@ -148,7 +161,7 @@ for ne in range(n_exps):
     adv_testing_rews.append(test_learnt_adv(env, pro_policy, adv_policy, path_length=path_length))
 
     ## Beginning alternating optimization ##
-    for ni in range(n_itr):
+    while ni <=n_itr:
         logger.log('\n\n\n####expNO{} global itr# {} n_pro_itr# {}####\n\n\n'.format(ne,ni,args.n_pro_itr))
         ## Train protagonist
         pro_algo.train()
@@ -180,6 +193,7 @@ for ne in range(n_exps):
                          'iter_save': ni,
                          'exp_save': ne,
                          'adv_test': adv_test_rew_summary}, open(save_name+'.temp','wb'))
+        ni = ni + 1
 
     ## Shutting down the optimizer ##
     pro_algo.shutdown_worker()
@@ -191,6 +205,7 @@ for ne in range(n_exps):
     step_test_rew_summary.append(step_testing_rews)
     rand_step_test_rew_summary.append(rand_step_testing_rews)
     adv_test_rew_summary.append(adv_testing_rews)
+    ne = ne + 1
 
 ## SAVING INFO ##
 pickle.dump({'args': args,

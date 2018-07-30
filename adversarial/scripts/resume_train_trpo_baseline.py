@@ -14,10 +14,12 @@ import pickle
 import argparse
 import os
 import gym
+import joblib
 
 ## Pass arguments ##
 parser = argparse.ArgumentParser()
-parser.add_argument('--env', type=str, required=True, help='Name of adversarial environment')
+parser.add_argument('--file', type=str, required=True, help='path of weight file')
+parser.add_argument('--env', type=str, help='Name of adversarial environment')
 parser.add_argument('--adv_name', type=str, default='no_adv', help='DOESNT MATTER FOR THIS BASELINE')
 parser.add_argument('--path_length', type=int, default=1000, help='maximum episode length')
 parser.add_argument('--layer_size', nargs='+', type=int, default=[100,100,100], help='layer definition')
@@ -35,7 +37,11 @@ parser.add_argument('--adv_fraction', type=float, default=1.0, help='DOESNT MATT
 parser.add_argument('--step_size', type=float, default=0.01, help='step size for learner')
 parser.add_argument('--gae_lambda', type=float, default=0.97, help='gae_lambda for learner')
 
-args = parser.parse_args()
+args_init = parser.parse_args()
+
+data = joblib.load(args_init.file)
+pro_policy = data['pro_policy']
+args = data['args']
 
 ## Number of experiments to run ##
 env_name = args.env
@@ -55,18 +61,27 @@ adv_fraction = 1.0
 step_size = args.step_size
 gae_lambda = args.gae_lambda
 
-const_test_rew_summary = []
-rand_test_rew_summary = []
-step_test_rew_summary = []
-rand_step_test_rew_summary = []
-adv_test_rew_summary = []
+
+#overwrite arguymenstsss
+save_every = args_init.save_every
+n_itr= args_init.n_itr
+ifRender=bool(args_init.if_render)
+
+const_test_rew_summary = data['zero_test']
+rand_test_rew_summary =data ['rand_test']
+step_test_rew_summary = data['step_test']
+rand_step_test_rew_summary = data['rand_step_test']
+adv_test_rew_summary = data['adv_test']
+ne = data['exp_save']
+ni = data['iter_save']
+
 save_prefix = 'BASELINE-env-{}_{}_Exp{}_Itr{}_BS{}_Adv{}_stp{}_lam{}'.format(env_name, adv_name, n_exps, n_itr, batch_size, adv_fraction, step_size, gae_lambda)
 save_dir = os.environ['HOME']+'/btpstuff/rllab-adv/results/baselines'
 fig_dir = 'figs'
 save_name = save_dir+'/'+save_prefix+'.p'
 fig_name = fig_dir+'/'+save_prefix+'.png'
 
-for ne in range(n_exps):
+while ne < n_exps:
     ## Environment definition ##
     env = normalize(GymEnv(env_name, adv_fraction))
     ## Protagonist policy definition ##
@@ -119,7 +134,7 @@ for ne in range(n_exps):
     adv_testing_rews = []
     adv_testing_rews.append(test_rand_adv(env, pro_policy, path_length=path_length))
     #embed()
-    for ni in range(n_itr):
+    while ni < n_itr:
         logger.log('\n\n\n####expNO{}_{} global itr# {}####\n\n\n'.format(ne,adv_name,ni))
         pro_algo.train()
         pro_rews += pro_algo.rews; all_rews += pro_algo.rews;
@@ -140,6 +155,7 @@ for ne in range(n_exps):
                          'iter_save': ni,
                          'exp_save': ne,
                          'adv_test': adv_test_rew_summary}, open(save_name+'.temp','wb'))
+        ni = ni + 1
 
     ## Shutting down the optimizer ##
     pro_algo.shutdown_worker()
@@ -148,6 +164,7 @@ for ne in range(n_exps):
     step_test_rew_summary.append(step_testing_rews)
     rand_step_test_rew_summary.append(rand_step_testing_rews)
     adv_test_rew_summary.append(adv_testing_rews)
+    ne = ne + 1
 
 ## SAVING INFO ##
 pickle.dump({'args': args,

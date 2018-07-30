@@ -4,7 +4,7 @@ from rllab.policies.constant_control_policy import ConstantControlPolicy
 from rllab.policies.random_uniform_control_policy import RandomUniformControlPolicy
 from rllab.policies.step_control_policy import StepControlPolicy
 
-def test_const_adv(env, protag_policy, path_length=100, n_traj=5, render=False):
+def test_const_adv(env, protag_policy, path_length=100, n_traj=5, render=False, speedup=1):
     const_adv_policy = ConstantControlPolicy(
         env_spec=env.spec,
         is_protagonist=False,
@@ -13,7 +13,7 @@ def test_const_adv(env, protag_policy, path_length=100, n_traj=5, render=False):
     paths = []
     sum_rewards = 0.0
     for _ in range(n_traj):
-        path = rollout(env, protag_policy, path_length, adv_agent=const_adv_policy, animated=render, test=True)
+        path = rollout(env, protag_policy, path_length, adv_agent=const_adv_policy, animated=render, test=True, speedup=speedup)
         sum_rewards += path['rewards'].sum()
         paths.append(path)
     avg_rewards = sum_rewards/n_traj
